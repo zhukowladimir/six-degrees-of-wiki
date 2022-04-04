@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"regexp"
 	"strings"
 	"sync"
@@ -11,12 +12,7 @@ import (
 	"github.com/gocolly/colly/extensions"
 )
 
-var mu sync.Mutex
-
-func main() {
-	abs_source := "https://en.wikipedia.org/wiki/Corrosion_inhibitor"
-	abs_target := "https://en.wikipedia.org/wiki/Wi-Fi"
-
+func find_distance(abs_source, abs_target string) {
 	_, source, _ := strings.Cut(abs_source, "wikipedia.org")
 	_, target, _ := strings.Cut(abs_target, "wikipedia.org")
 
@@ -26,24 +22,32 @@ func main() {
 		// colly.Debugger(&debug.LogDebugger{}),
 		colly.AllowURLRevisit(),
 	)
-	extensions.RandomUserAgent(c)
+	c.WithTransport(&http.Transport{
+		DisableKeepAlives: true,
+	})
 	c.Limit(&colly.LimitRule{
 		DomainRegexp: "https://[a-z]+\\.wikipedia\\.org/*.",
 		Parallelism:  2,
-		RandomDelay:  5 * time.Second,
+		Delay:        3 * time.Second,
+		RandomDelay:  15 * time.Second,
 	})
+	extensions.RandomUserAgent(c)
+	extensions.Referer(c)
+
 	// // errCount := make(map[colly.Request]uint)
 	// c.OnError(func(r *colly.Response, err error) {
-	// 	fmt.Println("Request URL:", r.Request.URL, "failed with response:", r, "\nError:", err)
+	// 	log.Println("Request URL:", r.Request.URL, "failed with response:", *r, "\nError:", err)
 	// 	// if c, ok := errCount[*r.Request]; r.StatusCode != 200 && ok && c < 3 {
 	// 	// 	if !ok {
 	// 	// 		c = 0
 	// 	// 	}
 	// 	// 	errCount[*r.Request] = c + 1
-	// 	// 	time.Sleep(5 * time.Second)
+	// 	// 	time.Sleep(1 * time.Second)
 	// 	// 	r.Request.Retry()
 	// 	// }
 	// })
+
+	var mu sync.Mutex
 
 	depths := make(map[string]int)
 	depths[source] = 0
@@ -106,19 +110,18 @@ func main() {
 		}
 
 		for _, i := range idxs {
+			time.Sleep(500 * time.Microsecond)
 			e.Request.Visit(links[i])
 		}
 	})
 
-	timer := time.Now()
 	c.Visit(abs_source)
 	c.Wait()
 
-	fmt.Println("time: ", time.Since(timer).Seconds())
 	fmt.Println("-------------")
 	fmt.Println(depths[target])
 	if _, ok := froms[target]; !ok {
-		fmt.Println("gg :(")
+		fmt.Println("Something went wrong :(")
 	} else {
 		for cur := target; cur != source; cur = froms[cur] {
 			fmt.Print(cur, " <- ")
