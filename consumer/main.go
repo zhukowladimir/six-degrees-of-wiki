@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"strings"
 	"time"
 
@@ -14,6 +15,14 @@ func failOnError(err error, msg string) {
 		log.Fatalf("%s: %s", msg, err)
 		panic(fmt.Sprintf("%s: %s", msg, err))
 	}
+}
+
+func randomString(len int) string {
+	bytes := make([]byte, len)
+	for i := 0; i < len; i++ {
+		bytes[i] = byte(rand.Intn(90-65) + 65)
+	}
+	return string(bytes)
 }
 
 func main() {
@@ -35,10 +44,15 @@ func main() {
 	)
 	failOnError(err, "Failed to declare a queue")
 
+	err = ch.Qos(1, 0, false)
+	failOnError(err, "Failed to set QoS")
+
+	name := randomString(16)
+
 	msgs, err := ch.Consume(
 		q.Name,
-		"",
-		true,
+		name,
+		false,
 		false,
 		false,
 		false,
@@ -50,13 +64,32 @@ func main() {
 
 	go func() {
 		for d := range msgs {
-			log.Printf("[+] Received a message: %s", d.Body)
+			log.Printf(" [.] Received a message: %s", d.Body)
 
 			links := strings.Fields(string(d.Body))
 			timer := time.Now()
-			find_distance(links[0], links[1])
+			path, err := findDistance(links[0], links[1])
+			if err != nil {
+				log.Printf("Failed to find distance: %s", err)
+				path = make([]string, 0)
+			}
 
-			log.Println("[+] Done with", time.Since(timer).Seconds())
+			err = ch.Publish(
+				name,
+				d.ReplyTo,
+				false,
+				false,
+				amqp.Publishing{
+					ContentType:   "text/plain",
+					CorrelationId: d.CorrelationId,
+					Body:          []byte(strings.Join(path, " ")),
+				},
+			)
+			failOnError(err, "Failed to publish a message")
+
+			log.Println(" [.] Done with", time.Since(timer).Seconds())
+
+			d.Ack(false)
 		}
 	}()
 

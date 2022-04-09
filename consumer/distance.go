@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"errors"
 	"net/http"
 	"regexp"
 	"strings"
@@ -12,7 +12,9 @@ import (
 	"github.com/gocolly/colly/extensions"
 )
 
-func find_distance(abs_source, abs_target string) {
+var mu sync.Mutex
+
+func findDistance(abs_source, abs_target string) ([]string, error) {
 	_, source, _ := strings.Cut(abs_source, "wikipedia.org")
 	_, target, _ := strings.Cut(abs_target, "wikipedia.org")
 
@@ -46,8 +48,6 @@ func find_distance(abs_source, abs_target string) {
 	// 	// 	r.Request.Retry()
 	// 	// }
 	// })
-
-	var mu sync.Mutex
 
 	depths := make(map[string]int)
 	depths[source] = 0
@@ -118,15 +118,19 @@ func find_distance(abs_source, abs_target string) {
 	c.Visit(abs_source)
 	c.Wait()
 
-	fmt.Println("-------------")
-	fmt.Println(depths[target])
+	var path []string
+
 	if _, ok := froms[target]; !ok {
-		fmt.Println("Something went wrong :(")
-	} else {
-		for cur := target; cur != source; cur = froms[cur] {
-			fmt.Print(cur, " <- ")
-		}
-		fmt.Println(source)
+		return nil, errors.New("something went wrong :(")
 	}
-	fmt.Println("-------------")
+	for cur := target; cur != source; cur = froms[cur] {
+		path = append(path, cur)
+	}
+	path = append(path, source)
+
+	for i, j := 0, len(path)-1; i < j; i, j = i+1, j-1 {
+		path[i], path[j] = path[j], path[i]
+	}
+
+	return path, nil
 }
