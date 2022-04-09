@@ -26,7 +26,7 @@ func randomString(len int) string {
 }
 
 func main() {
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/%2f")
+	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	failOnError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close()
 
@@ -67,12 +67,25 @@ func main() {
 			log.Printf(" [.] Received a message: %s", d.Body)
 
 			links := strings.Fields(string(d.Body))
+<<<<<<< Updated upstream:consumer/main.go
 			timer := time.Now()
 			path, err := findDistance(links[0], links[1])
 			if err != nil {
 				log.Printf("Failed to find distance: %s", err)
 				path = make([]string, 0)
 			}
+=======
+
+			// path, err := findPath(links[0], links[1])
+			// if err != nil {
+			// 	log.Printf("Failed to find path: %s", err)
+			// } else {
+			// 	log.Printf(" [.] Got answer: %d\n\t%s", len(path)-1, strings.Join(path, " -> "))
+			// }
+			// body := strings.Join(path, " ")
+			body := strings.Join(links, " --- ")
+			time.Sleep(3 * time.Second)
+>>>>>>> Stashed changes:server/consumer/main.go
 
 			err = ch.Publish(
 				name,

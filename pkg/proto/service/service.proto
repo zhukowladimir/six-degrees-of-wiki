@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package service;
+option go_package = "github.com/zhukowladimir/six-degrees-of-wiki/pkg/proto/service";
+
+service Service {
+    rpc GetPath(Request) returns (Response) {}
+}
+
+message Request {
+    string source = 1;
+    string target = 2;
+}
+
+message Response {
+    repeated string path = 1;
+}
