@@ -1,12 +1,17 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"strings"
 	"time"
 
 	"github.com/streadway/amqp"
+)
+
+var (
+	rabbitAddr = flag.String("addr", "guest:guest@localhost:5672", "RabbitMQ address in the format login:password@host:port")
 )
 
 func failOnError(err error, msg string) {
@@ -17,7 +22,9 @@ func failOnError(err error, msg string) {
 }
 
 func main() {
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/%2f")
+	flag.Parse()
+
+	conn, err := amqp.Dial("amqp://" + *rabbitAddr)
 	failOnError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close()
 

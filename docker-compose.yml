@@ -1,0 +1,28 @@
+version: "3"
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    hostname: "rabbitmq"
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+    network_mode: "host"
+  consumer1:
+    build:
+      context: consumer
+    ports:
+      - "8887:8887"
+    network_mode: "host"
+  consumer2:
+    build:
+      context: consumer
+    ports:
+      - "8888:8888"
+    network_mode: "host"
+  consumer3:
+    build:
+      context: consumer
+    ports:
+      - "8889:8889"
+    network_mode: "host"

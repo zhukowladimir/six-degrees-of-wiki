@@ -1,14 +1,19 @@
 package main
 
 import (
-	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"math/rand"
-	"os"
 	"strings"
 
 	"github.com/streadway/amqp"
+)
+
+var (
+	source     = flag.String("src", "https://en.wikipedia.org/wiki/Computer_science", "Source wiki page in the format of https://*.wikipedia.org/wiki/*")
+	target     = flag.String("tgt", "https://en.wikipedia.org/wiki/Manga", "Target wiki page in the format of https://*.wikipedia.org/wiki/*")
+	rabbitAddr = flag.String("addr", "guest:guest@localhost:5672", "RabbitMQ address in the format login:password@host:port")
 )
 
 func failOnError(err error, msg string) {
@@ -26,20 +31,10 @@ func randomString(len int) string {
 	return string(bytes)
 }
 
-func bodyFrom(args []string) (string, error) {
-	var s string
-	if len(args) == 3 {
-		s = strings.Join(args[1:], " ")
-	} else if len(args) < 2 || os.Args[1] == "" {
-		s = "https://en.wikipedia.org/wiki/Computer_science https://en.wikipedia.org/wiki/Manga"
-	} else {
-		return "", errors.New("incorrect input! Two wiki links are needed")
-	}
-	return s, nil
-}
-
 func main() {
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	flag.Parse()
+
+	conn, err := amqp.Dial("amqp://" + *rabbitAddr)
 	failOnError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close()
 
@@ -78,8 +73,7 @@ func main() {
 	)
 	failOnError(err, "Failed to register a consumer")
 
-	body, err := bodyFrom(os.Args)
-	failOnError(err, "Failed to read args")
+	body := *source + " " + *target
 
 	corrId := randomString(32)
 
@@ -101,10 +95,19 @@ func main() {
 
 	for d := range msgs {
 		if d.CorrelationId == corrId {
-			res := string(d.Body)
-			log.Printf(" [x] Received: %s", res)
+			body := string(d.Body)
+			log.Printf(" [x] Received: %s", body)
+
+			if body == "" {
+				fmt.Println("Something went wrong on remote server :<")
+
+				break
+			}
+
+			links := strings.Fields(body)
+			fmt.Printf("Path length: %d\n\t%s\n", len(links)-1, strings.Join(links, " -> "))
+
 			break
 		}
 	}
-
 }
